@@ -98,8 +98,6 @@ DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email, last_login = EXCLUDE
 
 """
 
-from table_schema import Order as schema, OrderModel as validation_schema, bulk_upsert_query_postgres, bulk_upsert_query_mysql
-
 @dag(
     dag_id="api_sap_workflow",
     schedule=timedelta(days=7), # run every week
@@ -195,6 +193,26 @@ def api_sap_workflow():
         retry_delay=timedelta(minutes=5)
     )
     def upsert_data(vendor_data:list[dict], bulk_upsert_threshold = 100, database_type = "postgres", session = None):
+        bulk_upsert_query_postgres = """
+INSERT INTO "user master" (vcode, name, pan, gst, email)
+VALUES (%s, %s, %s, %s, %s)
+ON CONFLICT (vcode) DO UPDATE
+SET name = EXCLUDED.name,
+    pan = EXCLUDED.pan,
+    gst = EXCLUDED.gst,
+    email = EXCLUDED.email;
+"""
+
+        bulk_upsert_query_mysql = """
+INSERT INTO `user master` (vcode, name, pan, gst, email)
+VALUES (%s, %s, %s, %s, %s)
+ON DUPLICATE KEY UPDATE
+name = VALUES(name),
+pan = VALUES(pan),
+gst = VALUES(gst),
+email = VALUES(email);
+"""
+        
         if session is None:
             logger.error("Database session not provided to upsert function, it is likely the database session was not initialized correctly")
             raise Exception("Database session not provided to upsert function")
