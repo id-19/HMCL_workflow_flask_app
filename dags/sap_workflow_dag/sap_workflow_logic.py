@@ -124,7 +124,7 @@ def parse_sap_data(sap_data:dict)->list[dict]:
     Parse the data returned from SAP
     sap_data: json body of the response from SAP, containing an array of records
     """
-    process_data_obj = sap_data['PWSESSIONRS']['PWPROCESSRS']['PWDATA']
+    process_data_obj = sap_data['PWSESSIONRS'][0]['PWPROCESSRS']['PWDATA']
     # process_headers = process_data_obj['PWHEADER']
     # process_errors = process_data_obj['PWERROR']
     rfc_call_data = process_data_obj['RFCCALL']
@@ -231,6 +231,6 @@ exmaple_data = [
     }
 ]
 
-# For testing
+# For testing 
 if __name__ == "__main__":
     main()
