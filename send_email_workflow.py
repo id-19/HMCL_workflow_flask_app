@@ -7,7 +7,7 @@ from typing import Dict
 @dag(
     dag_id="dynamic_email_sender",
     schedule=None,
-    start_date=datetime(2025, 8, 1),
+    # start_date=datetime(2025, 8, 1),
     catchup=False,
     tags=["email"],
     params={
