@@ -16,8 +16,8 @@ from typing import Dict
         "email_subject": Param("Email subject line", type=str),
         "email_content": Param("Email body content", type=str),
         "app_password": Param("Authentication password", type=str),
-        "smtp_server": Param("smtp.gmail.com", type=str),
-        "smtp_port": Param(465, type=int)
+        "smtp_server": Param("smtp-relay.gmail.com", type=str),
+        "smtp_port": Param(25, type=int)
     }
 )
 def email_sender_dag():
