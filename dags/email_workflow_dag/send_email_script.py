@@ -1,5 +1,6 @@
 import smtplib
 from email.mime.text import MIMEText
+import ssl
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -24,8 +25,14 @@ def send_plain_text_email(sender_email: str, receiver_email: str, email_subject:
     msg['To'] = receiver_email
 
     try:
+        # Create a secure SSL context
+        context = ssl.create_default_context()
         # Connect to the SMTP server and send the email
-        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+        # with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.ehlo()  # Optional: Identifies client to server
+            server.starttls(context=context)  # Upgrade to secure TLS
+            server.ehlo()  # Optional: Re-identify after TLS
             server.login(sender_email, app_password)
             server.sendmail(sender_email, receiver_email, msg.as_string())
             print(f"Email successfully sent to {receiver_email}")
