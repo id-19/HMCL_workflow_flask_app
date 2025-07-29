@@ -84,6 +84,8 @@ data_payload = {
 from airflow.sdk import dag, task
 from datetime import datetime, timedelta
 
+# Just import functionality from logic file
+from sap_workflow_logic import get_data_from_sap, parse_sap_data, upsert_data_to_db
 
 """
 The final query will look like this:
@@ -112,39 +114,40 @@ def api_sap_workflow():
         retry_delay=timedelta(minutes=5)
     )
     def fetch_order_data_from_sap():
-        try:
-            # Make the POST request
-            response = requests.post(url, headers=headers, json=data_payload)
+        # try:
+        #     # Make the POST request
+        #     response = requests.post(url, headers=headers, json=data_payload)
 
-            # Raise an HTTPError for bad responses (4xx or 5xx)
-            response.raise_for_status()
+        #     # Raise an HTTPError for bad responses (4xx or 5xx)
+        #     response.raise_for_status()
 
-            # Print the response content
-            print("Status Code:", response.status_code)
-            print("Response Headers:", response.headers)
-            print("Response Body (JSON):")
+        #     # Print the response content
+        #     print("Status Code:", response.status_code)
+        #     print("Response Headers:", response.headers)
+        #     print("Response Body (JSON):")
 
-            # Try to parse the response as JSON
-            try:
-                json_response = response.json()
-                print(json.dumps(json_response, indent=2)) # Pretty print JSON
-                return json_response
-            except json.JSONDecodeError as e:
-                print("Response is not valid JSON. Raw text response:")
-                raise Exception("Failed to parse response as JSON:", e)
+        #     # Try to parse the response as JSON
+        #     try:
+        #         json_response = response.json()
+        #         print(json.dumps(json_response, indent=2)) # Pretty print JSON
+        #         return json_response
+        #     except json.JSONDecodeError as e:
+        #         print("Response is not valid JSON. Raw text response:")
+        #         raise Exception("Failed to parse response as JSON:", e)
 
-        except requests.exceptions.HTTPError as errh:
-            print(f"Http Error: {errh}")
-            raise errh
-        except requests.exceptions.ConnectionError as errc:
-            print(f"Error Connecting: {errc}")
-            raise errc
-        except requests.exceptions.Timeout as errt:
-            print(f"Timeout Error: {errt}")
-            raise errt
-        except requests.exceptions.RequestException as err:
-            print(f"Oops: Something Else {err}")
-            raise err
+        # except requests.exceptions.HTTPError as errh:
+        #     print(f"Http Error: {errh}")
+        #     raise errh
+        # except requests.exceptions.ConnectionError as errc:
+        #     print(f"Error Connecting: {errc}")
+        #     raise errc
+        # except requests.exceptions.Timeout as errt:
+        #     print(f"Timeout Error: {errt}")
+        #     raise errt
+        # except requests.exceptions.RequestException as err:
+        #     print(f"Oops: Something Else {err}")
+        #     raise err
+        return get_data_from_sap(url, headers, data_payload)
         
     @task(
         task_id="initialize_db_session",
@@ -171,20 +174,17 @@ def api_sap_workflow():
             
 
     @task(
-        task_id="parse_sap_data",
+        task_id="format_sap_data",
         retries=3,
         retry_delay=timedelta(minutes=5)
     )
     # Okay, now we need to parse the data
-    def parse_sap_data(sap_data:dict)->list[dict]:
+    def format_sap_data(sap_data:dict)->list[dict]:
         """
-        Parse the data returned from SAP
+        Format the data returned from SAP
         sap_data: json body of the response from SAP, containing an array of records
         """
-        # TODO: Look at structure of response object, just return list of records
-        result_data = sap_data['data'] # TODO: Fix this to get actual array of json objects
-        # Return a list of dictionaries, where each dictionary is a record
-        return result_data
+        return parse_sap_data(sap_data)
 
 
     @task(
@@ -193,46 +193,47 @@ def api_sap_workflow():
         retry_delay=timedelta(minutes=5)
     )
     def upsert_data(vendor_data:list[dict], bulk_upsert_threshold = 100, database_type = "postgres", session = None):
-        bulk_upsert_query_postgres = """
-INSERT INTO "user master" (vcode, name, pan, gst, email)
-VALUES (%s, %s, %s, %s, %s)
-ON CONFLICT (vcode) DO UPDATE
-SET name = EXCLUDED.name,
-    pan = EXCLUDED.pan,
-    gst = EXCLUDED.gst,
-    email = EXCLUDED.email;
-"""
+#         bulk_upsert_query_postgres = """
+# INSERT INTO "user master" (vcode, name, pan, gst, email)
+# VALUES (%s, %s, %s, %s, %s)
+# ON CONFLICT (vcode) DO UPDATE
+# SET name = EXCLUDED.name,
+#     pan = EXCLUDED.pan,
+#     gst = EXCLUDED.gst,
+#     email = EXCLUDED.email;
+# """
 
-        bulk_upsert_query_mysql = """
-INSERT INTO `user master` (vcode, name, pan, gst, email)
-VALUES (%s, %s, %s, %s, %s)
-ON DUPLICATE KEY UPDATE
-name = VALUES(name),
-pan = VALUES(pan),
-gst = VALUES(gst),
-email = VALUES(email);
-"""
+#         bulk_upsert_query_mysql = """
+# INSERT INTO `user master` (vcode, name, pan, gst, email)
+# VALUES (%s, %s, %s, %s, %s)
+# ON DUPLICATE KEY UPDATE
+# name = VALUES(name),
+# pan = VALUES(pan),
+# gst = VALUES(gst),
+# email = VALUES(email);
+# """
         
-        if session is None:
-            logger.error("Database session not provided to upsert function, it is likely the database session was not initialized correctly")
-            raise Exception("Database session not provided to upsert function")
-        try:
-            if len(vendor_data) > bulk_upsert_threshold:
-                if database_type == "postgres":
-                    session.execute(bulk_upsert_query_postgres, [(obj['vcode'], obj['name'], obj['pan'], obj['gst'], obj['email']) for obj in vendor_data])
-                elif database_type == "mysql":
-                    session.execute(bulk_upsert_query_mysql, [(obj['vcode'], obj['name'], obj['pan'], obj['gst'], obj['email']) for obj in vendor_data]) 
-            else:
-                for obj in vendor_data:
-                    session.merge(obj)
-            session.commit()
-        except Exception as e:
-            logger.error(f"Failed to upsert data: {e}")
-            session.rollback()
-            session.close()
-            return False
-        session.close()
-        return True
+#         if session is None:
+#             logger.error("Database session not provided to upsert function, it is likely the database session was not initialized correctly")
+#             raise Exception("Database session not provided to upsert function")
+#         try:
+#             if len(vendor_data) > bulk_upsert_threshold:
+#                 if database_type == "postgres":
+#                     session.execute(bulk_upsert_query_postgres, [(obj['vcode'], obj['name'], obj['pan'], obj['gst'], obj['email']) for obj in vendor_data])
+#                 elif database_type == "mysql":
+#                     session.execute(bulk_upsert_query_mysql, [(obj['vcode'], obj['name'], obj['pan'], obj['gst'], obj['email']) for obj in vendor_data]) 
+#             else:
+#                 for obj in vendor_data:
+#                     session.merge(obj)
+#             session.commit()
+#         except Exception as e:
+#             logger.error(f"Failed to upsert data: {e}")
+#             session.rollback()
+#             session.close()
+#             return False
+#         session.close()
+#         return True
+        return upsert_data_to_db(vendor_data, bulk_upsert_threshold, database_type, session)
 
     @task(
         task_id="notify",
@@ -248,9 +249,9 @@ email = VALUES(email);
         
     session = initialize_db_session()
     raw_data = fetch_order_data_from_sap()
-    data = parse_sap_data(raw_data)
-    success = upsert_data(data, session=session)
-    notify(success)
+    data = format_sap_data(raw_data) # type: ignore
+    success = upsert_data(data, session=session) # type: ignore
+    notify(success) # type: ignore
     
 
 api_sap_workflow()

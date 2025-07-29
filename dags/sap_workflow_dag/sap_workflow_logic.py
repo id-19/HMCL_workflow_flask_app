@@ -124,10 +124,13 @@ def parse_sap_data(sap_data:dict)->list[dict]:
     Parse the data returned from SAP
     sap_data: json body of the response from SAP, containing an array of records
     """
-    # TODO: Look at structure of response object, just return list of records
-    result_data = sap_data['data'] # TODO: Fix this to get actual array of json objects
-    # Return a list of dictionaries, where each dictionary is a record
-    return result_data
+    process_data_obj = sap_data['PWSESSIONRS']['PWPROCESSRS']['PWDATA']
+    # process_headers = process_data_obj['PWHEADER']
+    # process_errors = process_data_obj['PWERROR']
+    rfc_call_data = process_data_obj['RFCCALL']
+    final_data = rfc_call_data['IT_OUTPUT']
+    # rfc_call_errors = rfc_call_data['PWERROR']
+    return final_data
 
 
 # QUERIES
