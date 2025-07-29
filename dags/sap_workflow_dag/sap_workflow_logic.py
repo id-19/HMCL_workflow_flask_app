@@ -230,3 +230,7 @@ exmaple_data = [
         "email": "jane.doe@example.com"
     }
 ]
+
+# For testing
+if __name__ == "__main__":
+    main()
