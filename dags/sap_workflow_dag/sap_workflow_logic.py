@@ -17,6 +17,7 @@ import json
 
 # For database
 from sqlalchemy import create_engine
+from sqlalchemy import Column, Integer, String, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -32,6 +33,20 @@ headers = {
     "Authorization": "Basic c070d126-09d7-11ee-82f8-00505692957f", # Put this in env vars
     "Content-Type": "application/json"
 }
+
+
+Base = declarative_base()
+
+class Vendor(Base):
+    __tablename__ = 'user master'
+
+    # sno = Column(Integer)
+    vcode = Column(String, primary_key=True)
+    name = Column(String)
+    pan = Column(String)
+    gst = Column(String)
+    email = Column(String)
+    # You can add other fields as needed
 
 # The data payload as a Python dictionary
 # requests will automatically convert this to JSON and set the
@@ -134,17 +149,17 @@ def parse_sap_data(sap_data:dict)->list[dict]:
 
 
 # QUERIES
-bulk_upsert_query_postgres = """
-INSERT INTO "user master" (vcode, name, pan, gst, email)
-VALUES (%s, %s, %s, %s, %s)
-ON CONFLICT (vcode) DO UPDATE
-SET name = EXCLUDED.name,
-    pan = EXCLUDED.pan,
-    gst = EXCLUDED.gst,
-    email = EXCLUDED.email;
-"""
+bulk_upsert_query_postgres = text("""
+    INSERT INTO "user master" (vcode, name, pan, gst, email)
+    VALUES (:vcode, :name, :pan, :gst, :email)
+    ON CONFLICT (vcode) DO UPDATE
+    SET name = EXCLUDED.name,
+        pan = EXCLUDED.pan,
+        gst = EXCLUDED.gst,
+        email = EXCLUDED.email;
+    """)
 
-bulk_upsert_query_mysql = """
+bulk_upsert_query_mysql = text("""
     INSERT INTO `user master` (vcode, name, pan, gst, email)
     VALUES (%s, %s, %s, %s, %s)
     ON DUPLICATE KEY UPDATE
@@ -152,7 +167,7 @@ bulk_upsert_query_mysql = """
     pan = VALUES(pan),
     gst = VALUES(gst),
     email = VALUES(email);
-"""
+""")
 
 
 # Upsert the data to the database
@@ -180,12 +195,22 @@ def upsert_data_to_db(vendor_data:list[dict], bulk_upsert_threshold = 100, datab
         session = initialize_db_session()
     try:
         if len(vendor_data) > bulk_upsert_threshold:
-            if database_type == "postgres":
-                session.execute(bulk_upsert_query_postgres, [(obj['vcode'], obj['name'], obj['pan'], obj['gst'], obj['email']) for obj in vendor_data])
-            elif database_type == "mysql":
-                session.execute(bulk_upsert_query_mysql, [(obj['vcode'], obj['name'], obj['pan'], obj['gst'], obj['email']) for obj in vendor_data]) 
+            try:
+                if database_type == "postgres":
+                    session.execute(bulk_upsert_query_postgres, vendor_data)
+                elif database_type == "mysql":
+                    session.execute(bulk_upsert_query_mysql, [(obj['vcode'], obj['name'], obj['pan'], obj['gst'], obj['email']) for obj in vendor_data]) 
+            except Exception as e:
+                logger.error(f"Failed bulk upsert, defaulting to single record upsert: {e}")
+                session.rollback()
+                for obj in vendor_data:
+                    obj = Vendor(**obj)
+                    session.merge(obj)
+                session.commit()
+                return False
         else:
             for obj in vendor_data:
+                obj = Vendor(**obj)
                 session.merge(obj)
         session.commit()
     except Exception as e:
