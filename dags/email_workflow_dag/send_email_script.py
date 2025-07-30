@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-def send_plain_text_email(sender_email: str, receiver_email: str, email_subject: str, email_content: str, app_password: str, smtp_server = os.getenv("SMTP_SERVER") or "smtp-relay.gmail.com", smtp_port = int(os.getenv("SMTP_PORT") or 25)):
+def send_plain_text_email(sender_email: str, receiver_email: str, email_subject: str, email_content: str, app_password: str, smtp_server = os.getenv("SMTP_SERVER"), smtp_port = os.getenv("SMTP_PORT")):
     """
     Sends a plain text email using the provided parameters.
 
@@ -29,7 +29,9 @@ def send_plain_text_email(sender_email: str, receiver_email: str, email_subject:
         context = ssl.create_default_context()
         # Connect to the SMTP server and send the email
         # with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
+        assert smtp_server is not None, "SMTP_SERVER environment variable is not set"
+        assert smtp_port is not None, "SMTP_PORT environment variable is not set"
+        with smtplib.SMTP(smtp_server, int(smtp_port)) as server:
             server.ehlo()  # Optional: Identifies client to server
             server.starttls(context=context)  # Upgrade to secure TLS
             server.ehlo()  # Optional: Re-identify after TLS

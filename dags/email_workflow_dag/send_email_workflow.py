@@ -16,8 +16,8 @@ from send_email_script import send_plain_text_email
         "email_subject": Param("Email subject line", type=str),
         "email_content": Param("Email body content", type=str),
         "app_password": Param("Authentication password", type=str),
-        "smtp_server": Param("smtp-relay.gmail.com", type=str),
-        "smtp_port": Param(25, type=int)
+        "smtp_server": Param(os.getenv("SMTP_SERVER"), type=str),
+        "smtp_port": Param(os.getenv("SMTP_PORT"), type=int)
     }
 )
 def email_sender_dag():
@@ -42,8 +42,8 @@ def email_sender_dag():
             raise ValueError(f"Missing required parameters: {', '.join(missing)}")
         
         # Extract SMTP parameters with defaults from environment or use function defaults
-        smtp_server = params.get("smtp_server", os.getenv("SMTP_SERVER", "smtp-relay.gmail.com"))
-        smtp_port = int(params.get("smtp_port", os.getenv("SMTP_PORT", "25")))
+        smtp_server = params.get("smtp_server", os.getenv("SMTP_SERVER"))
+        smtp_port = params.get("smtp_port", os.getenv("SMTP_PORT"))
         
         # Call the imported function
         send_plain_text_email(
