@@ -95,8 +95,8 @@ def create_app():
 
 def load_auth_data():
     """Load auth data within app context"""
-    auth_file = os.getenv("AUTH_FILE")
-    # assert auth_file is not None, "AUTH_FILE environment variable is not set"
+    auth_file = os.getenv("EMAIL_AUTH_FILE")
+    # assert auth_file is not None, "EMAIL_AUTH_FILE environment variable is not set"
 
     # Create the auth file if it doesn't exist
     if auth_file is None:
@@ -106,7 +106,7 @@ def load_auth_data():
     else:
         with open(auth_file, "r") as f:
             auth_data = json.load(f)
-        assert isinstance(auth_data, dict), "AUTH_FILE is not a valid JSON file"
+        assert isinstance(auth_data, dict), "EMAIL_AUTH_FILE is not a valid JSON file"
         
         user_tokens = auth_data.get("user_tokens", {})
     
